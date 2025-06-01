@@ -1,265 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Temporary Emails and Passwords Manager</title>
-<style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #121212;
-    color: #eee;
-    max-width: 700px;
-    margin: 20px auto;
-    padding: 20px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-  }
-  h1 {
-    text-align: center;
-    margin-bottom: 25px;
-  }
-  .tabs {
-    display: flex;
-    cursor: pointer;
-    margin-bottom: 20px;
-  }
-  .tab {
-    flex: 1;
-    padding: 12px 15px;
-    text-align: center;
-    background: #203a43;
-    border-radius: 6px 6px 0 0;
-    border: 1px solid #0f2027;
-    border-bottom: none;
-    user-select: none;
-  }
-  .tab.active {
-    background: #0d6efd;
-    font-weight: bold;
-  }
-  .tab-content {
-    background: #222;
-    padding: 15px;
-    border-radius: 0 6px 6px 6px;
-    border: 1px solid #0f2027;
-  }
-  input[type="text"], input[type="email"] {
-    width: 100%;
-    padding: 8px 10px;
-    font-size: 1rem;
-    margin-top: 6px;
-    border-radius: 6px;
-    border: none;
-  }
-  button {
-    margin-top: 15px;
-    padding: 10px 18px;
-    background-color: #0d6efd;
-    border: none;
-    color: white;
-    font-weight: 600;
-    font-size: 1.1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  button:hover {
-    background-color: #084cd9;
-  }
-  ul {
-    margin-top: 10px;
-    padding-left: 20px;
-    max-height: 250px;
-    overflow-y: auto;
-  }
-  li {
-    margin-bottom: 8px;
-    background: #1f1f1f;
-    padding: 8px;
-    border-radius: 6px;
-    word-break: break-word;
-  }
-  .result {
-    margin-top: 10px;
-    padding: 8px;
-    border-radius: 6px;
-  }
-  .safe {
-    color: #4caf50;
-    font-weight: bold;
-  }
-  .pwned {
-    color: #f44336;
-    font-weight: bold;
-  }
-  pre {
-    background: #333;
-    padding: 10px;
-    border-radius: 6px;
-    max-height: 150px;
-    overflow-y: auto;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Temporary mails and passwords manager</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<h1>Temporary Emails and Passwords Manager</h1>
+  <h1>Temporary mails and passwords manager</h1>
 
-<div class="tabs">
-  <div class="tab active" data-tab="tempMail">Temporary Email</div>
-  <div class="tab" data-tab="passwordManager">Password Manager</div>
-</div>
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="tempMail">Temporary mail</div>
+    <div class="tab" data-tab="passwordManager">Password manager</div>
+  </div>
 
-<div class="tab-content" id="tempMail">
-  <button id="generateEmailBtn">Generate Temporary Email</button>
-  <div id="emailGenerated" style="margin-top:10px; font-weight:bold;"></div>
+  <!-- Tab content: Temporary Mail -->
+  <div class="tab-content" id="tempMail">
+    <button id="genMailBtn">Generate temporary mail</button>
+    <div id="emailGenerated" style="margin-top:10px; font-weight:bold;"></div>
 
-  <button id="refreshInboxBtn" style="margin-top:15px;">Refresh Inbox</button>
-  <ul id="inboxList"></ul>
+    <button id="refreshInboxBtn" style="margin-top:15px;">Refresh</button>
+    <ul id="inboxList"></ul>
 
-  <div id="mailContent" style="margin-top:20px;"></div>
-</div>
+    <div id="mailContent" style="margin-top:20px;"></div>
+  </div>
 
-<div class="tab-content" id="passwordManager" style="display:none;">
-  <label for="service">Service/Page:</label>
-  <input type="text" id="service" placeholder="Example: Instagram, GitHub, Netflix" />
+  <!-- Tab content: Password Manager -->
+  <div class="tab-content" id="passwordManager" style="display:none;">
+    <label for="page">Service/Page:</label>
+    <input type="text" id="page" placeholder="Example: Instagram, GitHub, Netflix" />
 
-  <label for="emailInput">Email or alias:</label>
-  <input type="email" id="emailInput" placeholder="example@company.com" />
+    <label for="email">Email or alias:</label>
+    <input type="email" id="email" placeholder="example@company.com" />
 
-  <label for="passwordInput">Password</label>
-  <input type="text" id="passwordInput" placeholder="Generate or type a password" />
+    <label for="password">Password</label>
+    <input type="text" id="password" placeholder="Generate or type a password" />
 
-  <button id="generatePasswordBtn">Generate Safe Password</button>
-  <button id="checkPasswordBtn">Check on Have I Been Pwned</button>
-  <button id="saveBtn">Save Email and Password</button>
+    <button id="generateBtn">Generate safe password</button>
+    <button id="checkBtn">Verify on Have I Been Pwned</button>
+    <button id="saveBtn">Save mail + password</button>
 
-  <div class="result" id="result"></div>
+    <div class="result" id="result"></div>
 
-  <h2>Saved Emails and Passwords</h2>
-  <ul id="savedList"></ul>
-</div>
+    <h2>Saved mails and passwords</h2>
+    <ul id="list"></ul>
+  </div>
 
-<script>
-  // Tabs logic
-  const tabs = document.querySelectorAll('.tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-      document.getElementById(tab.dataset.tab).style.display = 'block';
-    });
-  });
-
-  // Temporary email with 1secmail API
-  let currentEmail = '';
-
-  function generateRandomEmail() {
-    const domains = ['1secmail.com', '1secmail.org', '1secmail.net'];
-    const randomName = Math.random().toString(36).substring(2, 10);
-    return `${randomName}@${domains[Math.floor(Math.random()*domains.length)]}`;
-  }
-
-  async function getMessages(email) {
-    const [user, domain] = email.split('@');
-    const res = await fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${user}&domain=${domain}`);
-    return await res.json();
-  }
-
-  async function getMessageContent(email, id) {
-    const [user, domain] = email.split('@');
-    const res = await fetch(`https://www.1secmail.com/api/v1/?action=readMessage&login=${user}&domain=${domain}&id=${id}`);
-    return await res.json();
-  }
-
-  async function refreshInbox() {
-    if (!currentEmail) return alert('Please generate a temporary email first.');
-    const inboxList = document.getElementById('inboxList');
-    inboxList.innerHTML = 'Loading...';
-    const messages = await getMessages(currentEmail);
-    inboxList.innerHTML = '';
-    if (messages.length === 0) {
-      inboxList.innerHTML = '<li>No new emails.</li>';
-      document.getElementById('mailContent').innerHTML = '';
-      return;
-    }
-    messages.forEach(msg => {
-      const li = document.createElement('li');
-      li.textContent = `From: ${msg.from} | Subject: ${msg.subject} | Date: ${msg.date}`;
-      li.style.cursor = 'pointer';
-      li.onclick = async () => {
-        const mail = await getMessageContent(currentEmail, msg.id);
-        document.getElementById('mailContent').innerHTML = `
-          <h3>${mail.subject}</h3>
-          <p><b>From:</b> ${mail.from}</p>
-          <p><b>To:</b> ${mail.to}</p>
-          <p><b>Date:</b> ${mail.date}</p>
-          <hr/>
-          <pre>${mail.textBody || mail.htmlBody || '(No content)'}</pre>
-        `;
-      };
-      inboxList.appendChild(li);
-    });
-  }
-
-  document.getElementById('generateEmailBtn').onclick = () => {
-    currentEmail = generateRandomEmail();
-    document.getElementById('emailGenerated').textContent = `Generated email: ${currentEmail}`;
-    document.getElementById('inboxList').innerHTML = '';
-    document.getElementById('mailContent').innerHTML = '';
-  };
-
-  document.getElementById('refreshInboxBtn').onclick = refreshInbox;
-
-  function generatePassword(length = 16) {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+{}[]";
-    let pass = "";
-    for (let i = 0; i < length; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return pass;
-  }
-
-  async function sha1Hash(str) {
-    const buffer = new TextEncoder().encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-  }
-
-  async function checkHIBP(password) {
-    const sha1 = await sha1Hash(password);
-    const prefix = sha1.slice(0, 5);
-    const suffix = sha1.slice(5);
-    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
-    const text = await res.text();
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const [hashSuffix, count] = line.split(':');
-      if (hashSuffix === suffix) return parseInt(count);
-    }
-    return 0;
-  }
-
-  function saveCredentials(service, email, password) {
-    let data = JSON.parse(localStorage.getItem('mailPassList') || '[]');
-    data.push({ service, email, password });
-    localStorage.setItem('mailPassList', JSON.stringify(data));
-    loadSavedList();
-  }
-
-  function loadSavedList() {
-  const list = document.getElementById('list');
-  list.innerHTML = ''; // Limpiar lista antes de cargar
-
-  const savedData = JSON.parse(localStorage.getItem('mailPassList') || '[]');
-
-  for (const item of savedData) {
-    const li = document.createElement('li');
-    li.textContent = `[${item.page}] ${item.email} — ${item.password}`;
-    list.appendChild(li);
-  }
-}
+  <script src="script.js"></script>
+</body>
+</html>
