@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gestor de mails temporales y contraseñas</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: #eee;
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 25px;
+  }
+  /* Tabs container */
+  .tabs {
+    display: flex;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 15px;
+    text-align: center;
+    background: #203a43;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid #0f2027;
+    border-bottom: none;
+    user-select: none;
+  }
+  .tab.active {
+    background: #0d6efd;
+    font-weight: bold;
+  }
+  /* Tabs content */
+  .tab-content {
+    background: #222;
+    padding: 15px;
+    border-radius: 0 6px 6px 6px;
+    border: 1px solid #0f2027;
+  }
+  /* Inputs */
+  input[type="text"], input[type="email"] {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 1rem;
+    margin-top: 6px;
+    border-radius: 6px;
+    border: none;
+  }
+  button {
+    margin-top: 15px;
+    padding: 10px 18px;
+    background-color: #0d6efd;
+    border: none;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #084cd9;
+  }
+  ul {
+    margin-top: 10px;
+    padding-left: 20px;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  li {
+    margin-bottom: 8px;
+    background: #1f1f1f;
+    padding: 8px;
+    border-radius: 6px;
+    word-break: break-word;
+  }
+  .result {
+    margin-top: 10px;
+    padding: 8px;
+    border-radius: 6px;
+  }
+  .safe {
+    color: #4caf50;
+    font-weight: bold;
+  }
+  .pwned {
+    color: #f44336;
+    font-weight: bold;
+  }
+  pre {
+    background: #333;
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>Gestor de mails temporales y contraseñas</h1>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-tab="tempMail">Mail temporal</div>
+  <div class="tab" data-tab="passwordManager">Gestor de contraseñas</div>
+</div>
+
+<!-- Tab content: Mail temporal -->
+<div class="tab-content" id="tempMail">
+  <button id="genMailBtn">Generar mail temporal</button>
+  <div id="emailGenerated" style="margin-top:10px; font-weight:bold;"></div>
+
+  <button id="refreshInboxBtn" style="margin-top:15px;">Actualizar bandeja</button>
+  <ul id="inboxList"></ul>
+
+  <div id="mailContent" style="margin-top:20px;"></div>
+</div>
+
+<!-- Tab content: Gestor contraseñas -->
+<div class="tab-content" id="passwordManager" style="display:none;">
+  <label for="page">Página / Servicio:</label>
+  <input type="text" id="page" placeholder="Ejemplo: Instagram, GitHub, Netflix" />
+
+  <label for="email">Email o Alias:</label>
+  <input type="email" id="email" placeholder="ejemplo@proton.me" />
+
+  <label for="password">Contraseña:</label>
+  <input type="text" id="password" placeholder="Generá o poné una contraseña" />
+
+  <button id="generateBtn">Generar contraseña segura</button>
+  <button id="checkBtn">Verificar en Have I Been Pwned</button>
+  <button id="saveBtn">Guardar mail + contraseña</button>
+
+  <div class="result" id="result"></div>
+
+  <h2>Lista guardada</h2>
+  <ul id="list"></ul>
+</div>
+
+<script>
+  // --- TABS ---
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById(tab.dataset.tab).style.display = 'block';
+    });
+  });
+
+  // -------- MAIL TEMPORAL CON 1SECMAIL API --------
+
+  let currentEmail = '';
+
+  // Generar email random (1secmail permite nombres aleatorios + dominios)
+  function generateRandomEmail() {
+    const domains = ['1secmail.com', '1secmail.org', '1secmail.net'];
+    const randomName = Math.random().toString(36).substring(2, 10);
+    return `${randomName}@${domains[Math.floor(Math.random()*domains.length)]}`;
+  }
+
+  // Mostrar mails inbox
+  async function getMessages(email) {
+    const [user, domain] = email.split('@');
+    const res = await fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${user}&domain=${domain}`);
+    const messages = await res.json();
+    return messages;
+  }
+
+  // Mostrar contenido mail
+  async function getMessageContent(email, id) {
+    const [user, domain] = email.split('@');
+    const res = await fetch(`https://www.1secmail.com/api/v1/?action=readMessage&login=${user}&domain=${domain}&id=${id}`);
+    const mail = await res.json();
+    return mail;
+  }
+
+  // Actualizar inbox
+  async function refreshInbox() {
+    if(!currentEmail) return alert('Generá primero un mail temporal');
+    document.getElementById('inboxList').innerHTML = 'Cargando...';
+    const messages = await getMessages(currentEmail);
+    const inboxList = document.getElementById('inboxList');
+    inboxList.innerHTML = '';
+    if(messages.length === 0) {
+      inboxList.innerHTML = '<li>No hay mails nuevos.</li>';
+      document.getElementById('mailContent').innerHTML = '';
+      return;
+    }
+    messages.forEach(msg => {
+      const li = document.createElement('li');
+      li.textContent = `De: ${msg.from} | Asunto: ${msg.subject} | Fecha: ${msg.date}`;
+      li.style.cursor = 'pointer';
+      li.onclick = async () => {
+        const mail = await getMessageContent(currentEmail, msg.id);
+        document.getElementById('mailContent').innerHTML = `
+          <h3>${mail.subject}</h3>
+          <p><b>De:</b> ${mail.from}</p>
+          <p><b>Para:</b> ${mail.to}</p>
+          <p><b>Fecha:</b> ${mail.date}</p>
+          <hr/>
+          <pre>${mail.textBody || mail.htmlBody || '(No hay contenido)'}</pre>
+        `;
+      };
+      inboxList.appendChild(li);
+    });
+  }
+
+  document.getElementById('genMailBtn').onclick = () => {
+    currentEmail = generateRandomEmail();
+    document.getElementById('emailGenerated').textContent = `Mail generado: ${currentEmail}`;
+    document.getElementById('inboxList').innerHTML = '';
+    document.getElementById('mailContent').innerHTML = '';
+  };
+
+  document.getElementById('refreshInboxBtn').onclick = refreshInbox;
+
+  // -------- GESTOR CONTRASEÑAS (tu código adaptado) --------
+
+  // Generar contraseña segura
+  function generarPassword(longitud = 16) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+{}[]";
+    let pass = "";
+    for(let i=0; i<longitud; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pass;
+  }
+
+  // Función SHA1 usando Web Crypto API
+  async function sha1Hash(str) {
+    const buffer = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  }
+
+  // Consultar Have I Been Pwned con k-Anonymity
+  async function checkHIBP(password) {
+    const sha1 = await sha1Hash(password);
+    const prefix = sha1.slice(0, 5);
+    const suffix = sha1.slice(5);
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+    const text = await res.text();
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const [hashSuffix, count] = line.split(':');
+      if (hashSuffix === suffix) return parseInt(count);
+    }
+    return 0;
+  }
+
+  // Guardar datos en localStorage
+  function guardar(page, email, password) {
+    let datos = JSON.parse(localStorage.getItem('mailPassList') || '[]');
+    datos.push({page, email, password});
+    localStorage.setItem('mailPassList', JSON.stringify(datos));
+    cargarLista();
+  }
+
+  // Cargar lista guardada
+  function cargarLista() {
+    let lista = document.getElementById('list');
+    lista.innerHTML = '';
+    let datos = JSON.parse(localStorage.getItem('mailPassList') || '[]');
+    for(let item of datos) {
+      const li = document.createElement('li');
+      li.textContent = `[${item.page}] ${item.email} — ${item.password}`;
+      lista.appendChild(li);
+    }
+  }
+
+  // Event listeners
+  document.getElementById('generateBtn').onclick = () => {
+    const pass = generarPassword();
+    document.getElementById('password').value = pass;
+    document.getElementById('result').textContent = 'Contraseña generada.';
+    document.getElementById('result').className = 'result safe';
+  };
+
+  document.getElementById('checkBtn').onclick = async () => {
+    const pass = document.getElementById('password').value;
+    if(!pass) {
+      alert('Primero generá o ingresá una contraseña.');
+      return;
+    }
+    document.getElementById('result').textContent = 'Consultando Have I Been Pwned...';
+    const count = await checkHIBP(pass);
+    if(count > 0) {
+      document.getElementById('result').textContent = `⚠️ La contraseña fue filtrada ${count} veces. No es segura.`;
+      document.getElementById('result').className = 'result pwned';
+    } else {
+      document.getElementById('result').textContent = '✔️ La contraseña no fue encontrada en filtraciones. Es segura.';
+      document.getElementById('result').className = 'result safe';
+    }
+  };
+
+  document.getElementById('saveBtn').onclick = () => {
+    const page = document.getElementById('page').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const pass = document.getElementById('password').value.trim();
+    if(!page || !email || !pass) {
+      alert('Completá página, email y contraseña para guardar.');
+      return;
+    }
+    guardar(page, email, pass);
+    document.getElementById('result').textContent = 'Guardado correctamente.';
+    document.getElementById('result').className = 'result safe';
+    document.getElementById('page').value = '';
+    document.getElementById('email').value = '';
+    document.getElementById('password').value = '';
+  };
+
+  cargarLista();
+
+</script>
+
+</body>
+</html>
